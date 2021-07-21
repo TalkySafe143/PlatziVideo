@@ -1,12 +1,41 @@
 const path = require('path');
-const HtmlWebPackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const config = require('./config'); //
+const CompressionWebpackPlugin = require('compression-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
+
+const isDev = (config.env === 'development'); //
+const entry = ['./src/frontend/index.js']; //
 
 module.exports = {
-  entry: './src/index.js',
+  optimization: {
+    minimize: true,
+    minimizer: [new TerserPlugin()],
+    splitChunks: {
+      chunks: 'async',
+      name: true,
+      cacheGroups: {
+        vendors: {
+          name: 'vendors',
+          chunks: 'all',
+          reuseExistingChunk: true,
+          priority: 1,
+          filename: 'assets/vendor.js',
+          enforce: true,
+          test(module, chunks) {
+            const name = module.nameForCondition && module.nameForCondition();
+            return chunks.some(chunk => chunk.name !== 'vendors' && /[\\/]node_modules[\\/]/.test(name)) 
+          }
+        }
+      }
+    }
+  },
+  entry, //
+  mode: config.env, // 
   output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'src/server/public'), // 
+    filename: 'assets/app.js',
     publicPath: '/',
   },
   resolve: {
@@ -20,14 +49,6 @@ module.exports = {
         use: {
           loader: "babel-loader"
         }
-      },
-      {
-        test: /\.html$/,
-        use: [
-          {
-            loader: 'html-loader'
-          }
-        ]
       },
       {
         test: /\.(s*)css$/,
@@ -56,12 +77,9 @@ module.exports = {
     historyApiFallback: true,
   },
   plugins: [
-    new HtmlWebPackPlugin({
-      template: './public/index.html',
-      filename: './index.html'
-    }),
+    isDev ? new webpack.HotModuleReplacementPlugin() : new CompressionWebpackPlugin({ test: /\.js$|\.css$/, filename: '[path][base].gz' }), // 
     new MiniCssExtractPlugin({
-      filename: 'assets/[name].css'
+      filename: 'assets/app.css'
     }),
   ]
 };
